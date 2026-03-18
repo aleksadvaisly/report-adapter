@@ -299,6 +299,30 @@ func TestRun_IstanbulToGoCover(t *testing.T) {
 	})
 }
 
+func TestRun_IstanbulStatementMapToGoCover(t *testing.T) {
+	input := `{
+  "coverageMap": {
+    "csvmem.js": {
+      "statementMap": {
+        "0": {"start": {"line": 2, "column": 0}, "end": {"line": 4, "column": 1}},
+        "1": {"start": {"line": 3, "column": 2}, "end": {"line": 3, "column": 10}},
+        "2": {"start": {"line": 6, "column": 0}, "end": {"line": 6, "column": 15}}
+      },
+      "s": {"0": 4, "1": 0, "2": 7}
+    }
+  }
+}`
+
+	output := runCoverageConversion(t, "istanbul", input)
+	assertCoverageOutput(t, output, []string{
+		"mode: set",
+		"csvmem.js:2.1,3.1 1 4",
+		"csvmem.js:3.1,4.1 1 4",
+		"csvmem.js:4.1,5.1 1 4",
+		"csvmem.js:6.1,7.1 1 7",
+	})
+}
+
 func TestRun_UnsupportedCombination(t *testing.T) {
 	var stdout bytes.Buffer
 	err := run([]string{"--from=junit", "--to=gocover"}, strings.NewReader("<testsuite/>"), &stdout, &bytes.Buffer{})
