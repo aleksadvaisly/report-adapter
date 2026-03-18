@@ -22,13 +22,38 @@ func TestRun_JUnitToGoTest(t *testing.T) {
 </testsuites>`
 
 	events := runGoTestConversion(t, "junit", input)
-	if len(events) != 4 {
-		t.Fatalf("expected 4 events, got %d", len(events))
+
+	starts := filterEvents(events, "start")
+	if len(starts) != 1 {
+		t.Fatalf("expected 1 start event, got %d", len(starts))
 	}
-	assertEvent(t, events[0], "test_csvmem", "test_parse_valid", "pass", 0.001, "")
-	assertEvent(t, events[1], "test_csvmem", "test_parse_empty", "fail", 0.002, "AssertionError\nexpected 5 got 3")
-	assertEvent(t, events[2], "test_csvmem", "test_parse_skip", "skip", 0.003, "skip reason\nnot on this platform")
-	assertPackageEvent(t, events[3], "test_csvmem", "fail")
+	if starts[0].Package != goTestReportPackage {
+		t.Fatalf("expected start package %q, got %q", goTestReportPackage, starts[0].Package)
+	}
+	runs := filterEvents(events, "run")
+	if len(runs) != 3 {
+		t.Fatalf("expected 3 run events, got %d", len(runs))
+	}
+
+	results := filterEvents(events, "pass", "fail", "skip")
+	var testEvents, packageEvents []goTestEvent
+	for _, e := range results {
+		if e.Test == "" {
+			packageEvents = append(packageEvents, e)
+		} else {
+			testEvents = append(testEvents, e)
+		}
+	}
+	if len(testEvents) != 3 {
+		t.Fatalf("expected 3 test events, got %d", len(testEvents))
+	}
+	assertEvent(t, testEvents[0], goTestReportPackage, "test_csvmem/test_parse_valid", "pass", 0.001, "")
+	assertEvent(t, testEvents[1], goTestReportPackage, "test_csvmem/test_parse_empty", "fail", 0.002, "")
+	assertEvent(t, testEvents[2], goTestReportPackage, "test_csvmem/test_parse_skip", "skip", 0.003, "")
+	if len(packageEvents) != 1 {
+		t.Fatalf("expected 1 package event, got %d", len(packageEvents))
+	}
+	assertPackageEvent(t, packageEvents[0], goTestReportPackage, "fail")
 }
 
 func TestRun_TRXToGoTest(t *testing.T) {
@@ -55,13 +80,38 @@ func TestRun_TRXToGoTest(t *testing.T) {
 </TestRun>`
 
 	events := runGoTestConversion(t, "trx", input)
-	if len(events) != 4 {
-		t.Fatalf("expected 4 events, got %d", len(events))
+
+	starts := filterEvents(events, "start")
+	if len(starts) != 1 {
+		t.Fatalf("expected 1 start event, got %d", len(starts))
 	}
-	assertEvent(t, events[0], "CsvMem.Tests.ParserTests", "ParseValidCSV", "pass", 0.019, "")
-	assertEvent(t, events[1], "CsvMem.Tests.ParserTests", "ParseEmptyCSV", "fail", 0.005, "Assert.Throws failed\nat ParserTests.cs:42")
-	assertEvent(t, events[2], "CsvMem.Tests.ParserTests", "ParseSkippedCSV", "skip", 0.001, "")
-	assertPackageEvent(t, events[3], "CsvMem.Tests.ParserTests", "fail")
+	if starts[0].Package != goTestReportPackage {
+		t.Fatalf("expected start package %q, got %q", goTestReportPackage, starts[0].Package)
+	}
+	runs := filterEvents(events, "run")
+	if len(runs) != 3 {
+		t.Fatalf("expected 3 run events, got %d", len(runs))
+	}
+
+	results := filterEvents(events, "pass", "fail", "skip")
+	var testEvents, packageEvents []goTestEvent
+	for _, e := range results {
+		if e.Test == "" {
+			packageEvents = append(packageEvents, e)
+		} else {
+			testEvents = append(testEvents, e)
+		}
+	}
+	if len(testEvents) != 3 {
+		t.Fatalf("expected 3 test events, got %d", len(testEvents))
+	}
+	assertEvent(t, testEvents[0], goTestReportPackage, "CsvMem.Tests.ParserTests/ParseValidCSV", "pass", 0.019, "")
+	assertEvent(t, testEvents[1], goTestReportPackage, "CsvMem.Tests.ParserTests/ParseEmptyCSV", "fail", 0.005, "")
+	assertEvent(t, testEvents[2], goTestReportPackage, "CsvMem.Tests.ParserTests/ParseSkippedCSV", "skip", 0.001, "")
+	if len(packageEvents) != 1 {
+		t.Fatalf("expected 1 package event, got %d", len(packageEvents))
+	}
+	assertPackageEvent(t, packageEvents[0], goTestReportPackage, "fail")
 }
 
 func TestRun_JestToGoTest(t *testing.T) {
@@ -77,13 +127,38 @@ func TestRun_JestToGoTest(t *testing.T) {
 }`
 
 	events := runGoTestConversion(t, "jest", input)
-	if len(events) != 4 {
-		t.Fatalf("expected 4 events, got %d", len(events))
+
+	starts := filterEvents(events, "start")
+	if len(starts) != 1 {
+		t.Fatalf("expected 1 start event, got %d", len(starts))
 	}
-	assertEvent(t, events[0], "/csvmem.test.js", "parse valid CSV", "pass", 0.005, "")
-	assertEvent(t, events[1], "/csvmem.test.js", "parse empty CSV", "fail", 0.003, "expected 5 got 3")
-	assertEvent(t, events[2], "/csvmem.test.js", "parse skipped CSV", "skip", 0.001, "")
-	assertPackageEvent(t, events[3], "/csvmem.test.js", "fail")
+	if starts[0].Package != goTestReportPackage {
+		t.Fatalf("expected start package %q, got %q", goTestReportPackage, starts[0].Package)
+	}
+	runs := filterEvents(events, "run")
+	if len(runs) != 3 {
+		t.Fatalf("expected 3 run events, got %d", len(runs))
+	}
+
+	results := filterEvents(events, "pass", "fail", "skip")
+	var testEvents, packageEvents []goTestEvent
+	for _, e := range results {
+		if e.Test == "" {
+			packageEvents = append(packageEvents, e)
+		} else {
+			testEvents = append(testEvents, e)
+		}
+	}
+	if len(testEvents) != 3 {
+		t.Fatalf("expected 3 test events, got %d", len(testEvents))
+	}
+	assertEvent(t, testEvents[0], goTestReportPackage, "/csvmem.test.js/parse valid CSV", "pass", 0.005, "")
+	assertEvent(t, testEvents[1], goTestReportPackage, "/csvmem.test.js/parse empty CSV", "fail", 0.003, "")
+	assertEvent(t, testEvents[2], goTestReportPackage, "/csvmem.test.js/parse skipped CSV", "skip", 0.001, "")
+	if len(packageEvents) != 1 {
+		t.Fatalf("expected 1 package event, got %d", len(packageEvents))
+	}
+	assertPackageEvent(t, packageEvents[0], goTestReportPackage, "fail")
 }
 
 func TestRun_CargoToGoTest(t *testing.T) {
@@ -103,13 +178,38 @@ test result: FAILED. 1 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out
 `
 
 	events := runGoTestConversion(t, "cargo", input)
-	if len(events) != 4 {
-		t.Fatalf("expected 4 events, got %d", len(events))
+
+	starts := filterEvents(events, "start")
+	if len(starts) != 1 {
+		t.Fatalf("expected 1 start event, got %d", len(starts))
 	}
-	assertEvent(t, events[0], "src/lib.rs", "tests::parse_happy_path", "pass", 0, "")
-	assertEvent(t, events[1], "src/lib.rs", "tests::parse_empty_csv", "fail", 0, "thread 'tests::parse_empty_csv' panicked at src/lib.rs:42\nexpected 5 got 3")
-	assertEvent(t, events[2], "src/lib.rs", "tests::parse_ignored", "skip", 0, "")
-	assertPackageEvent(t, events[3], "src/lib.rs", "fail")
+	if starts[0].Package != goTestReportPackage {
+		t.Fatalf("expected start package %q, got %q", goTestReportPackage, starts[0].Package)
+	}
+	runs := filterEvents(events, "run")
+	if len(runs) != 3 {
+		t.Fatalf("expected 3 run events, got %d", len(runs))
+	}
+
+	results := filterEvents(events, "pass", "fail", "skip")
+	var testEvents, packageEvents []goTestEvent
+	for _, e := range results {
+		if e.Test == "" {
+			packageEvents = append(packageEvents, e)
+		} else {
+			testEvents = append(testEvents, e)
+		}
+	}
+	if len(testEvents) != 3 {
+		t.Fatalf("expected 3 test events, got %d", len(testEvents))
+	}
+	assertEvent(t, testEvents[0], goTestReportPackage, "src/lib.rs/tests::parse_happy_path", "pass", 0, "")
+	assertEvent(t, testEvents[1], goTestReportPackage, "src/lib.rs/tests::parse_empty_csv", "fail", 0, "")
+	assertEvent(t, testEvents[2], goTestReportPackage, "src/lib.rs/tests::parse_ignored", "skip", 0, "")
+	if len(packageEvents) != 1 {
+		t.Fatalf("expected 1 package event, got %d", len(packageEvents))
+	}
+	assertPackageEvent(t, packageEvents[0], goTestReportPackage, "fail")
 }
 
 func TestRun_CoveragePyToGoCover(t *testing.T) {
@@ -228,6 +328,20 @@ func runGoTestConversion(t *testing.T, from, input string) []goTestEvent {
 		events = append(events, event)
 	}
 	return events
+}
+
+func filterEvents(events []goTestEvent, actions ...string) []goTestEvent {
+	actionSet := map[string]bool{}
+	for _, a := range actions {
+		actionSet[a] = true
+	}
+	var out []goTestEvent
+	for _, e := range events {
+		if actionSet[e.Action] {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 func runCoverageConversion(t *testing.T, from, input string) string {

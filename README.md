@@ -86,6 +86,7 @@ go-cover-treemap -coverprofile=coverage.out > treemap.svg
 
 ## Ograniczenia
 
+- Dla kompatybilności z `go-test-report` adapter stabilizuje pole `Package` do bezpiecznego pakietu Go, a oryginalny kontekst źródłowy zachowuje w nazwie testu.
 - `coverage.out` jest emitowane w uproszczonej formie liniowej: jeden wpis na linię, `stmt_count=1`.
 - Parser `cargo` opiera się na wzorcach tekstowych ze `stdout`, więc jest bardziej wrażliwy na warianty outputu niż parsery XML/JSON.
 - Parser Istanbul wymaga mapy pokrycia linii `l`.

@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"strings"
 	"time"
 )
+
+const goTestReportPackage = "fmt"
 
 type goTestEvent struct {
 	Time    string  `json:"Time"`
@@ -30,10 +33,27 @@ func emitGoTestJSON(w io.Writer, tests []TestCase) error {
 	order := make([]string, 0)
 	base := time.Now().UTC()
 
-	for i, test := range tests {
+	tick := 0
+	emit := func(action, pkg, test, output string, elapsed float64) error {
+		tick++
+		return encoder.Encode(goTestEvent{
+			Time:    base.Add(time.Duration(tick) * time.Millisecond).Format(time.RFC3339Nano),
+			Action:  action,
+			Package: pkg,
+			Test:    test,
+			Elapsed: elapsed,
+			Output:  output,
+		})
+	}
+
+	for _, rawTest := range tests {
+		test := normalizeForGoTestReport(rawTest)
 		if _, ok := summaries[test.Package]; !ok {
 			summaries[test.Package] = &packageSummary{}
 			order = append(order, test.Package)
+			if err := emit("start", test.Package, "", "", 0); err != nil {
+				return err
+			}
 		}
 		summary := summaries[test.Package]
 		summary.Elapsed += test.Elapsed
@@ -45,20 +65,32 @@ func emitGoTestJSON(w io.Writer, tests []TestCase) error {
 		default:
 			summary.Passed++
 		}
-		if err := encoder.Encode(goTestEvent{
-			Time:    base.Add(time.Duration(i) * time.Millisecond).Format(time.RFC3339Nano),
-			Action:  test.Status,
-			Package: test.Package,
-			Test:    test.Name,
-			Elapsed: test.Elapsed,
-			Output:  test.Output,
-		}); err != nil {
+		if err := emit("run", test.Package, test.Name, "", 0); err != nil {
+			return err
+		}
+		if err := emit("output", test.Package, test.Name, "=== RUN   "+test.Name+"\n", 0); err != nil {
+			return err
+		}
+		if test.Output != "" {
+			if err := emit("output", test.Package, test.Name, test.Output+"\n", 0); err != nil {
+				return err
+			}
+		}
+		tag := "--- PASS: "
+		if test.Status == "fail" {
+			tag = "--- FAIL: "
+		} else if test.Status == "skip" {
+			tag = "--- SKIP: "
+		}
+		if err := emit("output", test.Package, test.Name, tag+test.Name+"\n", 0); err != nil {
+			return err
+		}
+		if err := emit(test.Status, test.Package, test.Name, "", test.Elapsed); err != nil {
 			return err
 		}
 	}
 
-	offset := len(tests)
-	for i, pkg := range order {
+	for _, pkg := range order {
 		summary := summaries[pkg]
 		action := "pass"
 		switch {
@@ -67,15 +99,23 @@ func emitGoTestJSON(w io.Writer, tests []TestCase) error {
 		case summary.Passed == 0 && summary.Skipped > 0:
 			action = "skip"
 		}
-		if err := encoder.Encode(goTestEvent{
-			Time:    base.Add(time.Duration(offset+i) * time.Millisecond).Format(time.RFC3339Nano),
-			Action:  action,
-			Package: pkg,
-			Elapsed: summary.Elapsed,
-		}); err != nil {
+		if err := emit(action, pkg, "", "", summary.Elapsed); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func normalizeForGoTestReport(test TestCase) TestCase {
+	logicalPackage := strings.TrimSpace(test.Package)
+	test.Package = goTestReportPackage
+	if logicalPackage == "" {
+		return test
+	}
+	prefix := logicalPackage + "/"
+	if !strings.HasPrefix(test.Name, prefix) {
+		test.Name = prefix + test.Name
+	}
+	return test
 }
