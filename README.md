@@ -1,28 +1,11 @@
 # report-adapter
 
-`report-adapter` to adapter formatów raportów testów i coverage.
-Konwertuje natywne formaty z różnych ekosystemów do formatów narzędzi Go:
+Your test framework produces reports in its own format. Your coverage tool writes yet another.
+`goreport-adapter` converts all of them into Go's standard formats so you can use one set of visualization tools across every language.
 
-- testy -> `go test -json` (NDJSON)
-- coverage -> `coverage.out` (Go cover profile)
+## Getting Started
 
-Cel v1 jest prosty: ujednolicić wejście, a rendering HTML/SVG zostawić istniejącym narzędziom Go.
-
-## Status
-
-Aktualnie zaimplementowane jest podejście v1: adapter formatów wejściowych do `go test -json` i `coverage.out`.
-
-Obsługiwane wejścia:
-
-- testy: `junit`, `trx`, `jest`, `cargo`
-- coverage: `coverage-py`, `cobertura`, `llvm-cov`, `istanbul`
-
-Obsługiwane wyjścia:
-
-- `gotest` -> `go test -json`
-- `gocover` -> `coverage.out`
-
-## Instalacja
+Install the adapter and the rendering tools it pairs with:
 
 ```bash
 go install github.com/aleksadvaisly/report-adapter/cmd/goreport-adapter@latest
@@ -30,9 +13,21 @@ go install github.com/vakenbolt/go-test-report@latest
 go install github.com/nikolaydubina/go-cover-treemap@latest
 ```
 
-## Użycie
+The adapter reads from stdin and writes to stdout. Pick an input format with `--from` and an output format with `--to`:
 
-### Testy -> `go test -json`
+```bash
+cat pytest-report.xml | goreport-adapter --from=junit --to=gotest > test-report.json
+```
+
+That one command turned a JUnit XML file into Go's native test JSON. Pipe it into `go-test-report` for an HTML report:
+
+```bash
+cat test-report.json | go-test-report -o test-report.html
+```
+
+## Test Reports
+
+The adapter normalizes test results from four frameworks into `go test -json` (NDJSON). Each produces the same output format - pass, fail, skip events with timing and captured output:
 
 ```bash
 cat pytest-report.xml | goreport-adapter --from=junit --to=gotest > test-report.json
@@ -41,13 +36,11 @@ cat jest-report.json  | goreport-adapter --from=jest --to=gotest > test-report.j
 cargo test 2>&1       | goreport-adapter --from=cargo --to=gotest > test-report.json
 ```
 
-Potem HTML:
+The `cargo` parser reads directly from `cargo test` stdout - no intermediate file needed.
 
-```bash
-cat test-report.json | go-test-report -o test-report.html
-```
+## Coverage Reports
 
-### Coverage -> `coverage.out`
+Coverage data from four formats converts into Go's `coverage.out` profile:
 
 ```bash
 cat coverage-py.json       | goreport-adapter --from=coverage-py --to=gocover > coverage.out
@@ -56,50 +49,37 @@ cat llvm-cov-report.json   | goreport-adapter --from=llvm-cov --to=gocover > cov
 cat jest-report.json       | goreport-adapter --from=istanbul --to=gocover > coverage.out
 ```
 
-Potem raport coverage:
+Istanbul support covers both direct line maps (`l` field) and statement maps with hit counts.
+
+Once you have `coverage.out`, render it as an SVG treemap:
 
 ```bash
 go-cover-treemap -coverprofile=coverage.out > treemap.svg
 ```
 
-## Format wejściowy i wyjściowy
+## CI Integration
 
-### `--from`
+A typical pipeline step converts native reports and generates HTML/SVG artifacts:
 
-| Flaga | Format | Typ |
-|---|---|---|
-| `junit` | JUnit XML | testy |
-| `trx` | Visual Studio TRX XML | testy |
-| `jest` | Jest JSON | testy |
-| `cargo` | `cargo test` stdout | testy |
-| `coverage-py` | coverage.py JSON | coverage |
-| `cobertura` | Cobertura XML | coverage |
-| `llvm-cov` | llvm-cov export JSON | coverage |
-| `istanbul` | Istanbul/Jest coverageMap | coverage |
+```bash
+pytest --junitxml=report.xml
+cat report.xml | goreport-adapter --from=junit --to=gotest | go-test-report -o tests.html
 
-### `--to`
+coverage json -o cov.json
+cat cov.json | goreport-adapter --from=coverage-py --to=gocover > coverage.out
+go-cover-treemap -coverprofile=coverage.out > treemap.svg
+```
 
-| Flaga | Format |
-|---|---|
-| `gotest` | `go test -json` |
-| `gocover` | `coverage.out` |
+The adapter has no external dependencies - it is a single static binary built on Go's stdlib.
 
-## Ograniczenia
+## Limitations
 
-- Dla kompatybilności z `go-test-report` adapter stabilizuje pole `Package` do bezpiecznego pakietu Go, a oryginalny kontekst źródłowy zachowuje w nazwie testu.
-- `coverage.out` jest emitowane w uproszczonej formie liniowej: jeden wpis na linię, `stmt_count=1`.
-- Parser `cargo` opiera się na wzorcach tekstowych ze `stdout`, więc jest bardziej wrażliwy na warianty outputu niż parsery XML/JSON.
-- Parser Istanbul wymaga mapy pokrycia linii `l`.
+The adapter stabilizes the `Package` field to a safe Go package name for `go-test-report` compatibility. Original source context is preserved in test names.
+
+Coverage output uses a simplified line-based form: one entry per line with `stmt_count=1`. The `cargo` parser relies on stdout text patterns, making it more sensitive to output variations than the XML/JSON parsers.
 
 ## Development
-
-Uruchomienie testów:
 
 ```bash
 go test ./...
 ```
-
-Główna implementacja znajduje się w:
-
-- `cmd/goreport-adapter/main.go`
-- `cmd/goreport-adapter/*.go`
