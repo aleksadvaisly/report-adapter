@@ -1,6 +1,6 @@
 # report-adapter
 
-<p align="center"><img src="docs/goadapter3.png"></p>
+<p align="center"><img src="docs/goadapter4.png"></p>
 
 Your test framework produces reports in its own format. Your coverage tool writes yet another.
 `goreport-adapter` converts all of them into Go's standard formats so you can use one set of visualization tools across every language.
