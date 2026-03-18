@@ -12,9 +12,11 @@ type jestReport struct {
 }
 
 type jestSuite struct {
-	TestFilePath string           `json:"testFilePath"`
-	TestResults  []jestCaseResult `json:"testResults"`
-	FailureMsg   string           `json:"message"`
+	TestFilePath     string           `json:"testFilePath"`
+	Name             string           `json:"name"`
+	TestResults      []jestCaseResult `json:"testResults"`
+	AssertionResults []jestCaseResult `json:"assertionResults"`
+	FailureMsg       string           `json:"message"`
 }
 
 type jestCaseResult struct {
@@ -33,8 +35,12 @@ func parseJest(data []byte) ([]TestCase, error) {
 
 	results := make([]TestCase, 0)
 	for _, suite := range report.TestResults {
-		pkg := normalizePackagePath(suite.TestFilePath, "jest")
-		for _, tc := range suite.TestResults {
+		pkg := normalizePackagePath(firstNonEmpty(suite.TestFilePath, suite.Name), "jest")
+		cases := suite.TestResults
+		if len(cases) == 0 {
+			cases = suite.AssertionResults
+		}
+		for _, tc := range cases {
 			status, ok := jestStatusToAction(tc.Status)
 			if !ok {
 				continue
